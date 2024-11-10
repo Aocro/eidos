@@ -1,17 +1,17 @@
 import sqlite3InitModule, { Sqlite3Static } from "@sqlite.org/sqlite-wasm"
 
-import { logger } from "@/lib/log"
+import { ExperimentFormValues } from "@/apps/web-app/settings/experiment/store"
+import { logger } from "@/lib/env"
 import { getConfig } from "@/lib/storage/indexeddb"
-import { ExperimentFormValues } from "@/app/settings/experiment/store"
 
-import { DataSpace } from "./DataSpace"
+import { DataSpace, EidosDatabase } from "./DataSpace"
 
 const log = logger.info
 const error = logger.error
 
 export class Sqlite {
   sqlite3?: Sqlite3Static
-  constructor() {}
+  constructor() { }
 
   getSQLite3 = async function (): Promise<Sqlite3Static> {
     log("Loading and initializing SQLite3 module...")
@@ -43,8 +43,17 @@ export class Sqlite {
       throw new Error("sqlite3 not initialized")
     }
     const db = new this.sqlite3.oo1.DB(":memory:", "c")
-    return new DataSpace(db, false, "draft", this.sqlite3)
+    return new DataSpace({
+      db,
+      activeUndoManager: false,
+      dbName: "draft",
+      sqlite3: this.sqlite3,
+      context: {
+        setInterval: setInterval,
+      },
+    })
   }
+
 
   async db(props: {
     path: string
@@ -65,13 +74,41 @@ export class Sqlite {
     const config = await getConfig<{ experiment: ExperimentFormValues }>(
       "config-experiment"
     )
+
+    async function createUDF(db: EidosDatabase) {
+      const globalKv = new Map()
+      // udf
+      const scripts = await db.selectObjects(
+        `SELECT DISTINCT name, code FROM eidos__scripts WHERE type = 'udf' AND enabled = 1`
+      )
+      scripts.forEach((script) => {
+        const { code, name } = script
+        globalKv.set(name, new Map())
+        try {
+          const func = new Function("kv", ("return " + code) as string)
+          const udf = {
+            name: name as string,
+            xFunc: func(globalKv.get(name)),
+            deterministic: true,
+          }
+          db.createFunction(udf)
+        } catch (error) {
+          console.error(error)
+        }
+      })
+    }
+
     // console.log("config.experiment.undoRedo", config.experiment.undoRedo)
-    return new DataSpace(
+    return new DataSpace({
       db,
-      Boolean(draftDb && config.experiment.undoRedo),
-      name,
-      this.sqlite3,
-      draftDb
-    )
+      activeUndoManager: Boolean(draftDb && config.experiment.undoRedo),
+      dbName: name,
+      sqlite3: this.sqlite3,
+      draftDb,
+      createUDF,
+      context: {
+        setInterval: setInterval,
+      },
+    })
   }
 }

@@ -19,7 +19,6 @@ import { cn, getTableIdByRawTableName, shortenId, uuidv7 } from "@/lib/utils"
 import { useCurrentSubPage } from "@/hooks/use-current-sub-page"
 import { useSqlite } from "@/hooks/use-sqlite"
 import { useTableOperation } from "@/hooks/use-table"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +26,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { NodeComponent } from "@/app/[database]/[node]/page"
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/sub-page-dialog"
+import { NodeComponent } from "@/apps/web-app/[database]/[node]/page"
 
 import { Button } from "../ui/button"
 import { TableContext, useCurrentView, useViewOperation } from "./hooks"
@@ -35,6 +39,7 @@ import { ViewField } from "./view-field/view-field"
 import { ViewFilter } from "./view-filter"
 import { ViewItem } from "./view-item"
 import { ViewSort } from "./view-sort"
+import { useTranslation } from "react-i18next"
 
 const useGap = (
   width: number | undefined,
@@ -122,6 +127,7 @@ export const ViewToolbar = (props: {
   tableName: string
   space: string
   isEmbed: boolean
+  isReadOnly?: boolean
 }) => {
   const { space, tableName, viewId } = useContext(TableContext)
   const ref = useRef<HTMLDivElement>(null)
@@ -153,6 +159,7 @@ export const ViewToolbar = (props: {
   const [open, setOpen] = useState(false)
   const tableId = getTableIdByRawTableName(tableName)
   const { subPageId, setSubPage, clearSubPage } = useCurrentSubPage()
+  const { t } = useTranslation()
 
   const handleAddRow = async () => {
     const uuid = uuidv7()
@@ -219,6 +226,12 @@ export const ViewToolbar = (props: {
     jump2View(defaultViewId)
   }
 
+  const handleMaximize = useCallback(() => {
+    if (subPageId) {
+      navigate(`/${space}/${subPageId}`)
+    }
+  }, [navigate, space, subPageId])
+
   return (
     <div ref={ref}>
       <div className="ml-2 flex items-center justify-between border-b pb-1">
@@ -229,9 +242,11 @@ export const ViewToolbar = (props: {
             jump2View={jump2View}
             deleteView={deleteView}
           />
-          <Button onClick={handleAddView} variant="ghost" size="sm">
-            <PlusIcon className="h-4 w-4"></PlusIcon>
-          </Button>
+          {!props.isReadOnly && (
+            <Button onClick={handleAddView} variant="ghost" size="sm">
+              <PlusIcon className="h-4 w-4"></PlusIcon>
+            </Button>
+          )}
         </div>
         <div
           className={cn("flex gap-2 hover:opacity-100", {
@@ -245,15 +260,20 @@ export const ViewToolbar = (props: {
             <ViewField view={currentView} />
           </div>
 
-          <Button size="xs" onClick={handleAddRow}>
-            <PlusIcon className="h-4 w-4"></PlusIcon>
-            New
-          </Button>
+          {!props.isReadOnly && (
+            <Button size="xs" onClick={handleAddRow}>
+              <PlusIcon className="h-4 w-4"></PlusIcon>
+              {t('common.new')}
+            </Button>
+          )}
           <Dialog open={open} onOpenChange={handleDialogOpenChange}>
             <DialogTrigger>
               <div></div>
             </DialogTrigger>
-            <DialogContent className="container h-[95vh] p-0 md:max-w-[756px]">
+            <DialogContent
+              className="container h-[95vh] p-0 md:max-w-[756px]"
+              onMaximize={handleMaximize}
+            >
               <ScrollArea className="h-full">
                 <NodeComponent nodeId={subPageId} />
               </ScrollArea>

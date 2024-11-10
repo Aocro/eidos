@@ -16,17 +16,14 @@ import {
   uuidv7,
 } from "@/lib/utils"
 import { RowRange } from "@/components/table/views/grid/hooks/use-async-data"
-import { useSpaceAppStore } from "@/app/[database]/store"
+import { useSpaceAppStore } from "@/apps/web-app/[database]/store"
 
 import { IField } from "../lib/store/interface"
 import { useSqlWorker } from "./use-sql-worker"
 import { useSqliteStore } from "./use-sqlite"
 import { useUiColumns } from "./use-ui-columns"
 
-export const useTableFields = (
-  tableIdOrName: string | undefined,
-  databaseName: string
-) => {
+export const useTableFields = (tableIdOrName: string | undefined) => {
   const {
     dataStore: { tableMap },
   } = useSqliteStore()
@@ -47,7 +44,7 @@ export const useTableFields = (
   }
 }
 
-export const useTableViews = (tableId: string, databaseName: string) => {
+export const useTableViews = (tableId: string, databaseName?: string) => {
   const {
     dataStore: { tableMap },
   } = useSqliteStore()

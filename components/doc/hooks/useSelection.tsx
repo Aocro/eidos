@@ -3,6 +3,8 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { useKeyPress } from "ahooks"
 import { $getNodeByKey, $getRoot, LexicalNode } from "lexical"
 
+import { useEditorInstance } from "./editor-instance-context"
+
 type BoxStyle = {
   display: string
   left: string
@@ -18,15 +20,13 @@ type BoxStyle = {
 export function useMouseSelection(
   getSelectionItems: () => NodeListOf<Element>
 ) {
-  // const selectedKeySet = new Set<string>()
-  const [selectedKeySet, setSelectedKeySet] = useState(new Set<string>())
-
+  const { setIsSelecting: setGlobalIsSelecting } = useEditorInstance()
   const [editor] = useLexicalComposerContext()
-  const [isSelecting, setSelecting] = useState(false)
   const [startX, setStartX] = useState(0)
   const [startY, setStartY] = useState(0)
   const [endX, setEndX] = useState(0)
   const [endY, setEndY] = useState(0)
+  const [selectedKeySet, setSelectedKeySet] = useState(new Set<string>())
   const [boxStyle, setBoxStyle] = useState<BoxStyle>({
     display: "none",
     left: "",
@@ -36,6 +36,12 @@ export function useMouseSelection(
     position: "fixed",
     opacity: 0.5,
   })
+  const [isSelecting, _setIsSelecting] = useState(false)
+
+  const setIsSelecting = (isSelecting: boolean) => {
+    _setIsSelecting(isSelecting)
+    setGlobalIsSelecting(isSelecting)
+  }
 
   const clearSelectedKetSet = () => {
     setSelectedKeySet(new Set())
@@ -101,7 +107,7 @@ export function useMouseSelection(
       ) {
         return
       }
-      setSelecting(true)
+      setIsSelecting(true)
       const { clientX, clientY } = e
       setStartX(clientX)
       setStartY(clientY)
@@ -140,6 +146,8 @@ export function useMouseSelection(
       })
 
       const boxes = getSelectionItems()
+      const newSelectedKeySet = new Set<string>()
+
       Array.from(boxes ?? []).forEach((box) => {
         const rect = box.getBoundingClientRect()
         const boxLeft = rect.left + window.scrollX
@@ -157,19 +165,23 @@ export function useMouseSelection(
             top + height >= boxTop &&
             boxBottom >= top)
         if (isIntersect) {
-          ;(box as HTMLElement).style.backgroundColor = "rgb(173 216 230 / 27%)"
+          ;(box as HTMLElement).style.backgroundColor =
+            "rgba(173, 216, 230, 0.5)"
           const key = (box as HTMLElement).getAttribute("data-key")
           if (key) {
-            selectedKeySet.add(key)
-            setSelectedKeySet(new Set(selectedKeySet))
+            newSelectedKeySet.add(key)
           }
+        } else {
+          ;(box as HTMLElement).style.backgroundColor = ""
         }
       })
+
+      setSelectedKeySet(newSelectedKeySet)
     }
 
     function handleMouseUp(e: MouseEvent) {
       e.stopImmediatePropagation()
-      setSelecting(false)
+      setIsSelecting(false)
       setBoxStyle({
         ...boxStyle,
         display: "none",
@@ -211,5 +223,15 @@ export function useMouseSelection(
     }
   }, [isSelecting, startX, startY, boxStyle, getSelectionItems, selectedKeySet])
 
-  return { boxStyle }
+  useEffect(() => {
+    return () => {
+      setGlobalIsSelecting(false)
+    }
+  }, [])
+
+  return {
+    selectedKeySet,
+    isSelecting,
+    boxStyle,
+  }
 }

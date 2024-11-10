@@ -14,7 +14,7 @@ import { useCurrentPathInfo } from "./use-current-pathinfo"
 import { useSqlite } from "./use-sqlite"
 
 // we can't import hnswlib in worker directly, because it's also a web worker
-class EmbeddingManager {
+export class EmbeddingManager {
   dataSpace: DataSpace // this is the proxy of worker, not instance of DataSpace
   spaceName: string
   constructor(dataSpace: DataSpace, spaceName: string) {
@@ -29,12 +29,12 @@ class EmbeddingManager {
   async filterEmbeddings(model: string, source: string) {
     const res = await this.dataSpace
       .sql2`SELECT id, raw_content,source,source_type FROM ${Symbol(
-      EmbeddingTableName
-    )} WHERE model = ${model} AND source = ${source}`
+        EmbeddingTableName
+      )} WHERE model = ${model} AND source = ${source}`
 
     const embeddingIndexMap = new Map<number, IEmbedding>()
     const embeddings: number[][] = []
-    res.forEach((row, index) => {
+    res.forEach((row: any, index: number) => {
       const embedding = JSON.parse(row.embedding)
       embeddingIndexMap.set(index, row)
       embeddings.push(embedding)
@@ -48,9 +48,9 @@ class EmbeddingManager {
   async getMetadata(ids: string[]) {
     const res = await this.dataSpace
       .sql2`SELECT id, raw_content,source,source_type FROM ${Symbol(
-      EmbeddingTableName
-    )} WHERE id IN ${ids}`
-    const resMap = res.reduce((acc, row) => {
+        EmbeddingTableName
+      )} WHERE id IN ${ids}`
+    const resMap = res.reduce((acc: any, row: any) => {
       acc[row.id] = row
       return acc
     }, {} as Record<string, IEmbedding>)
@@ -67,7 +67,7 @@ class EmbeddingManager {
       model,
       this.spaceName
     )
-    const ids = res.map((row) => parseInt(row.id))
+    const ids = res.map((row: any) => parseInt(row.id))
     if (exists) {
       vectorHnswIndex.markDeleteItems(ids)
     }
@@ -177,16 +177,17 @@ class EmbeddingManager {
   }
 }
 
-export const useHnsw = () => {
+export const useHnsw = (_space?: string) => {
   const { space } = useCurrentPathInfo()
-  const { sqlite } = useSqlite()
+  const __space = _space || space
+  const { sqlite } = useSqlite(__space)
   const emRef = useRef<EmbeddingManager | null>(null)
 
   useEffect(() => {
-    if (sqlite && space) {
-      emRef.current = new EmbeddingManager(sqlite, space)
+    if (sqlite && __space) {
+      emRef.current = new EmbeddingManager(sqlite, __space)
     }
-  }, [space, sqlite])
+  }, [__space, sqlite])
   // embedding
   async function createEmbedding(data: {
     id: string

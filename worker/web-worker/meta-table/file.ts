@@ -2,7 +2,7 @@ import { FileTableName } from "@/lib/sqlite/const"
 import {
   EidosFileSystemManager,
   FileSystemType,
-  efsManager,
+  getExternalFolderManager,
   getFsRootHandle,
 } from "@/lib/storage/eidos-file-system"
 import { getUuid } from "@/lib/utils"
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS ${this.name} (
       const file = new File([blob], name, { type: blob.type })
       const space = this.dataSpace.dbName
       const dirs = ["spaces", space, "files", ...subDir]
-      const paths = await efsManager.addFile(dirs, file, _name ? _name : fileId)
+      const paths = await this.dataSpace.efsManager?.addFile(dirs, file, _name ? _name : fileId)
       if (!paths) {
         throw new Error("add file failed")
       }
@@ -150,22 +150,42 @@ CREATE TABLE IF NOT EXISTS ${this.name} (
   }
 
   async getBlobURLbyPath(path: string): Promise<string | null> {
-    const f = await efsManager.getFileByPath(path)
+    const f = await this.dataSpace.efsManager?.getFileByPath(path)
+    if (!f) {
+      throw new Error("file not found")
+    }
     return URL.createObjectURL(f)
   }
 
   async getBlobByPath(path: string) {
-    const f = await efsManager.getFileByPath(path)
+    let fileManager = this.dataSpace.efsManager
+    let f: File | null = null
+    if (path.startsWith("/@/")) {
+      const extFolderName = path.split("/")[2]
+      fileManager = await getExternalFolderManager(extFolderName)
+      const paths = decodeURIComponent(path).split("/").filter(Boolean).slice(2)
+      f = await fileManager.getFile(paths)
+    } else {
+      if (!fileManager) {
+        throw new Error("file manager not found")
+      }
+      f = await fileManager.getFileByPath(path)
+    }
     const blob = new Blob([f], { type: f.type })
     return blob
   }
 
   async walk(): Promise<any[]> {
-    const allFiles = await efsManager.walk([
+    const fileManager = this.dataSpace.efsManager
+    if (!fileManager) {
+      throw new Error("file manager not found")
+    }
+    const allFiles = await fileManager.walk([
       "spaces",
       this.dataSpace.dbName,
       "files",
     ])
+    console.log('allFiles', allFiles)
     return allFiles
   }
 
@@ -231,7 +251,10 @@ CREATE TABLE IF NOT EXISTS ${this.name} (
     const space = this.dataSpace.dbName
     let parentPath = _parentPath || ["spaces", space, "files"]
     // walk dirHandle upload to /extensions/<name>/
-    await efsManager.addDir(parentPath, dirHandle.name)
+    if (!this.dataSpace.efsManager) {
+      throw new Error("file manager not found")
+    }
+    await this.dataSpace.efsManager.addDir(parentPath, dirHandle.name)
     parentPath = [...parentPath, dirHandle.name]
     for await (const [key, value] of dirHandle.entries()) {
       if (value.kind === "directory") {
@@ -246,7 +269,7 @@ CREATE TABLE IF NOT EXISTS ${this.name} (
           const file = await (value as FileSystemFileHandle).getFile()
           const fileId = getUuid()
 
-          const paths = await efsManager.addFile(parentPath, file)
+          const paths = await this.dataSpace.efsManager.addFile(parentPath, file)
           if (!paths) {
             throw new Error("add file failed")
           }

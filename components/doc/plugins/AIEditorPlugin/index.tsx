@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { $convertFromMarkdownString } from "@lexical/markdown"
+import { CodeNode } from "@lexical/code"
+import { $convertFromMarkdownString, Transformer } from "@lexical/markdown"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 import { mergeRegister } from "@lexical/utils"
 import {
@@ -7,11 +8,14 @@ import {
   $getRoot,
   $getSelection,
   $isRangeSelection,
+  $nodesOfType,
   COMMAND_PRIORITY_LOW,
   RangeSelection,
   SELECTION_CHANGE_COMMAND,
 } from "lexical"
 
+import { $createMermaidNode } from "../../blocks/mermaid/node"
+import { INSERT_MERMAID_COMMAND } from "../../blocks/mermaid/plugin"
 import { useExtBlocks } from "../../hooks/use-ext-blocks"
 import { allTransformers } from "../const"
 
@@ -21,7 +25,7 @@ export const AIEditorPlugin = (props: any) => {
   const extBlocks = useExtBlocks()
   const __allTransformers = useMemo(() => {
     return [...extBlocks.map((block) => block.transform), ...allTransformers]
-  }, [extBlocks])
+  }, [extBlocks]) as Transformer[]
 
   useEffect(() => {
     return mergeRegister(() => {
@@ -43,12 +47,8 @@ export const AIEditorPlugin = (props: any) => {
   useEffect(() => {
     const aiComplete = (event: Event) => {
       const text = (event as CustomEvent).detail
-      const mermaidBlock = extBlocks.find(
-        (block) => block.name === "Mermaid Block"
-      )
       editor.update(() => {
-        mermaidBlock &&
-          editor.dispatchCommand(mermaidBlock.command.create, text)
+        editor.dispatchCommand(INSERT_MERMAID_COMMAND, text)
       })
     }
     document.addEventListener("createMermaidChart", aiComplete)
@@ -84,6 +84,14 @@ export const AIEditorPlugin = (props: any) => {
         } else {
           const root = $getRoot()
           root.append(paragraphNode)
+        }
+
+        // after calling $convertFromMarkdownString()
+        for (const code of $nodesOfType(CodeNode)) {
+          const lang = code.getLanguage()
+          if (lang === "mermaid") {
+            code.replace($createMermaidNode(code.getTextContent()))
+          }
         }
       })
     }

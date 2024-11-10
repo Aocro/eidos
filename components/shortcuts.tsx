@@ -4,7 +4,7 @@ import { useKeyPress } from "ahooks"
 import { useTheme } from "next-themes"
 import { useNavigate } from "react-router-dom"
 
-import { useSpaceAppStore } from "@/app/[database]/store"
+import { useSpaceAppStore } from "@/apps/web-app/[database]/store"
 
 /**
  * global shortcuts, register here
@@ -12,7 +12,8 @@ import { useSpaceAppStore } from "@/app/[database]/store"
  */
 export function ShortCuts() {
   const { setTheme, theme } = useTheme()
-  const { isAiOpen, setIsAiOpen } = useSpaceAppStore()
+  const { isRightPanelOpen: isAiOpen, setIsRightPanelOpen: setIsAiOpen } =
+    useSpaceAppStore()
   const navigate = useNavigate()
 
   useKeyPress(["shift.ctrl.l", "shift.meta.l"], (e) => {
@@ -30,6 +31,10 @@ export function ShortCuts() {
 
   useKeyPress(["ctrl.closebracket", "meta.closebracket"], () => {
     navigate(1)
+  })
+
+  useKeyPress(["ctrl.comma", "meta.comma"], () => {
+    navigate("/settings")
   })
 
   return null

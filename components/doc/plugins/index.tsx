@@ -1,3 +1,4 @@
+import { Transformer } from "@lexical/markdown"
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin"
 import LexicalClickableLinkPlugin from "@lexical/react/LexicalClickableLinkPlugin"
 import { HashtagPlugin } from "@lexical/react/LexicalHashtagPlugin"
@@ -7,7 +8,9 @@ import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin"
 import { ListPlugin } from "@lexical/react/LexicalListPlugin"
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin"
 import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin"
+import { TablePlugin } from "@lexical/react/LexicalTablePlugin"
 
+import { BuiltInBlocks } from "../blocks"
 import { useExtBlocks } from "../hooks/use-ext-blocks"
 import { AIToolsPlugin } from "./AIToolsPlugin"
 // import { AIToolsPlugin } from "./AIToolsPlugin"
@@ -30,7 +33,8 @@ export const AllPlugins = () => {
   const __allTransformers = [
     ...allTransformers,
     ...extBlocks.map((block) => block.transform),
-  ]
+    ...BuiltInBlocks.map((block) => block.transform).filter(Boolean),
+  ] as Transformer[]
   return (
     <>
       <HorizontalRulePlugin />
@@ -41,6 +45,7 @@ export const AllPlugins = () => {
       <HashtagPlugin />
       <ListPlugin />
       <DatabasePlugin />
+      {/* <TablePlugin /> */}
       {/* TabIndentationPlugin let you type `Tab` to indent a list item, ListMaxIndentLevelPlugin let you control the max indent level */}
       <TabIndentationPlugin />
       {/* don't be a dick, don't nest lists too deep */}
@@ -57,6 +62,9 @@ export const AllPlugins = () => {
       <MarkdownShortcutPlugin transformers={__allTransformers} />
       <FloatingLinkEditorPlugin />
       <BookmarkPlugin />
+      {BuiltInBlocks.map((block) => (
+        <block.plugin key={block.name} />
+      ))}
       {extBlocks.map((block) => (
         <block.plugin key={block.name} />
       ))}

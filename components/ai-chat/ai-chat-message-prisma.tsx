@@ -1,4 +1,4 @@
-import { AreaChart, ArrowBigLeftIcon, PauseIcon, Play } from "lucide-react"
+import { AreaChart, PauseIcon, Play } from "lucide-react"
 import Prism from "prismjs"
 
 import { Button } from "@/components/ui/button"
@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import "prismjs/components/prism-sql"
 import "prismjs/themes/prism-tomorrow.css"
 import { useEffect, useRef } from "react"
-import { IEmbedding } from "@/worker/web-worker/meta-table/embedding"
 import {
   DEFAULT_MARKDOWN_RENDERERS,
   Markdown,
   MarkdownRenderers,
 } from "react-marked-renderer"
 
+import MermaidRenderer from "../doc/blocks/mermaid/MermaidRenderer"
 import { MentionComponent } from "../doc/nodes/MentionNode/MentionComponent"
 import { useSpeak, useSpeakStore } from "./webspeech/hooks"
 
@@ -93,21 +93,22 @@ export const AIMessage = ({
       }
       if (lang === "mermaid") {
         return (
-          <pre className="relative flex w-[calc(100%-24px)] rounded-sm bg-gray-700 p-2">
-            <code
+          <div className="relative flex w-[calc(100%-24px)] rounded-sm p-2">
+            {/* <code
               className={`language-${lang} w-full overflow-x-auto`}
               dangerouslySetInnerHTML={{
                 __html: codeHtml,
               }}
-            ></code>
+            ></code> */}
+            <MermaidRenderer text={text} />
             <Button
-              className=" absolute right-0 top-0 text-gray-300"
+              className=" absolute right-0 top-0"
               variant="ghost"
               onClick={() => createMermaidChart(text)}
             >
               <AreaChart className="h-4 w-4" />
             </Button>
-          </pre>
+          </div>
         )
       }
       return (
@@ -145,11 +146,11 @@ export const AIMessage = ({
     >
       {message && <Markdown markdown={message} renderers={renderers} />}
       {hasRef && (
-        <div className="mb-8">
-          <div className=" m-2 h-[1px] border border-purple-300" />
-          <div className="flex flex-col">
+        <div className="mb-4">
+          <div className="m-1 border-b border-purple-300" />
+          <div className="flex flex-col items-start">
             {prevMessage?.references.map((source: string) => (
-              <MentionComponent id={source} key={source} />
+              <MentionComponent id={source} key={source} disablePreview />
             ))}
           </div>
         </div>

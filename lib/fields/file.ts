@@ -1,5 +1,6 @@
 import type { FileCell } from "@/components/table/views/grid/cells/file/file-cell"
 
+import { getFilePreviewImage, getFileType } from "../mime/mime"
 import { BaseField } from "./base"
 import { CompareOperator, FieldType, GridCellKind } from "./const"
 
@@ -30,14 +31,27 @@ export class FileField extends BaseField<FileCell, FileProperty, string> {
   getProxyData = (data: string[]) => {
     if (this.column.property?.proxyUrl) {
       const proxyUrl = this.column.property?.proxyUrl
-      return data.map((d) => {
+      return data.map((_d) => {
+        const d = _d.trim()
+        const fileType = getFileType(d)
+        // show only image
+        if (fileType !== "image") {
+          return getFilePreviewImage(d)
+        }
         if (d.startsWith("http")) {
           return proxyUrl + d
         }
         return d
       })
     }
-    return data.filter(Boolean)
+    return data.filter(Boolean).map((d) => {
+      const fileType = getFileType(d)
+      // show only image
+      if (fileType !== "image") {
+        return getFilePreviewImage(d)
+      }
+      return d
+    })
   }
 
   getCellContent(rawData: string): FileCell {

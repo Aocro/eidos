@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react"
 import { IFile } from "@/worker/web-worker/meta-table/file"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { create } from "zustand"
 
-import { efsManager } from "@/lib/storage/eidos-file-system"
-import { getUuid } from "@/lib/utils"
 import { useCurrentPathInfo } from "@/hooks/use-current-pathinfo"
+import { getUuid } from "@/lib/utils"
 
+import { useEidosFileSystemManager } from "./use-fs"
 import { useSqlite } from "./use-sqlite"
 
 const useFsStore = create<{
@@ -45,7 +45,7 @@ const useFsStore = create<{
  * so we expose this hook to handle file upload\delete\update
  * every mutation about file must be done via this hook.
  */
-export const useFileSystem = () => {
+export const useFileSystem = (rootDir?: FileSystemDirectoryHandle) => {
   const { space } = useCurrentPathInfo()
   const {
     entries,
@@ -59,6 +59,14 @@ export const useFileSystem = () => {
     setPrevSelectedEntries,
     setSelectedEntries,
   } = useFsStore()
+  const { efsManager } = useEidosFileSystemManager()
+
+  const defaultPaths = useMemo(() => {
+    if (rootDir) {
+      return []
+    }
+    return ["spaces", space, "files"]
+  }, [rootDir, space])
 
   const { sqlite } = useSqlite()
 
@@ -85,14 +93,9 @@ export const useFileSystem = () => {
   }, [currentPath, setCurrentPath])
 
   const refresh = useCallback(async () => {
-    const entries = await efsManager.listDir([
-      "spaces",
-      space,
-      "files",
-      ...currentPath,
-    ])
+    const entries = await efsManager.listDir([...defaultPaths, ...currentPath])
     setEntries(entries)
-  }, [space, currentPath, setEntries])
+  }, [efsManager, defaultPaths, currentPath, setEntries])
 
   useEffect(() => {
     refresh()
@@ -107,10 +110,11 @@ export const useFileSystem = () => {
       for (const file of files) {
         const fileId = getUuid()
         const paths = await efsManager.addFile(
-          ["spaces", space, "files", ...currentPath],
+          [...defaultPaths, ...currentPath],
           file,
           useUuId ? fileId : undefined
         )
+        console.log("paths", { paths, defaultPaths, currentPath })
         if (!paths) {
           throw new Error("add file failed")
         }
@@ -130,15 +134,15 @@ export const useFileSystem = () => {
       await refresh()
       return res
     },
-    [currentPath, refresh, space, sqlite]
+    [currentPath, defaultPaths, efsManager, refresh, sqlite]
   )
 
   const addDir = useCallback(
     async (name: string) => {
-      await efsManager.addDir(["spaces", space, "files", ...currentPath], name)
+      await efsManager.addDir([...defaultPaths, ...currentPath], name)
       await refresh()
     },
-    [currentPath, refresh, space]
+    [currentPath, defaultPaths, efsManager, refresh]
   )
 
   const uploadDir = async (
@@ -169,7 +173,7 @@ export const useFileSystem = () => {
         throw new Error("delete file failed, no sqlite instance")
       }
       for (const { name, isDir } of names) {
-        const paths = ["spaces", space, "files", ...currentPath, name]
+        const paths = [...defaultPaths, ...currentPath, name]
         await efsManager.deleteEntry(paths, isDir)
         const path = paths.join("/")
         if (isDir) {
@@ -180,7 +184,7 @@ export const useFileSystem = () => {
       }
       await refresh()
     },
-    [currentPath, refresh, space, sqlite]
+    [currentPath, defaultPaths, efsManager, refresh, sqlite]
   )
 
   return {

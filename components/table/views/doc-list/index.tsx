@@ -13,7 +13,7 @@ import { useSqlite } from "@/hooks/use-sqlite"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { NodeComponent } from "@/app/[database]/[node]/page"
+import { NodeComponent } from "@/apps/web-app/[database]/[node]/page"
 
 import { useGalleryViewData } from "../gallery/hooks"
 
@@ -63,7 +63,7 @@ export function DocListView(props: IDocListViewProps) {
   return (
     <div className="flex h-full shrink-0 gap-4 p-2">
       <ScrollArea
-        className={cn(" h-full  w-[300px] overflow-y-auto border-r")}
+        className={cn(" h-full  w-[300px] overflow-y-auto border-r shrink-0")}
         ref={containerRef}
       >
         <div className="w-full p-2">

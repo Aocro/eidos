@@ -9,28 +9,33 @@ import {
 import { SelectFromStatement, parseFirst, toSql } from "pgsql-ast-parser"
 import { useSearchParams } from "react-router-dom"
 
+import { FieldType } from "@/lib/fields/const"
 import { IView } from "@/lib/store/IView"
 import { IField } from "@/lib/store/interface"
 import { getTableIdByRawTableName } from "@/lib/utils"
-import { useSqlite } from "@/hooks/use-sqlite"
-import { useTableOperation } from "@/hooks/use-table"
+import { useSqlite, useSqliteStore } from "@/hooks/use-sqlite"
+import { useTableFields, useTableOperation } from "@/hooks/use-table"
 
 import { getShowColumns } from "./helper"
+import { isInkServiceMode } from "@/lib/env"
 
 export const TableContext = createContext<{
   tableName: string
   space: string
   viewId?: string
+  isReadOnly?: boolean
 }>({
   tableName: "",
   space: "",
   viewId: undefined,
+  isReadOnly: true,
 })
 
 export const useViewOperation = () => {
   const { tableName, space } = useContext(TableContext)
   const tableId = getTableIdByRawTableName(tableName)
   const { updateViews } = useTableOperation(tableName!, space)
+  const { setView } = useSqliteStore()
   const { sqlite } = useSqlite()
 
   const addView = useCallback(async () => {
@@ -53,7 +58,9 @@ export const useViewOperation = () => {
 
   const updateView = useCallback(
     async (id: string, view: Partial<IView>) => {
-      if (sqlite) {
+      if (isInkServiceMode) {
+        setView(tableId, id, view)
+      } else if (sqlite) {
         await sqlite.updateView(id, view)
         await updateViews()
       }
@@ -147,6 +154,24 @@ export const useShowColumns = (uiColumns: IField[], view: IView) => {
     return getShowColumns(uiColumns, {
       orderMap: view?.order_map,
       hiddenFields: view?.hidden_fields,
-    })
+    }).filter((field) => field.table_column_name !== "title")
   }, [uiColumns, view?.hidden_fields, view?.order_map])
+}
+
+export const useView = <T = any>(viewId: string) => {
+  const { tableName, space } = useContext(TableContext)
+  const { views } = useTableOperation(tableName!, space)
+  const view = useMemo(() => {
+    return views.find((v) => v.id === viewId)
+  }, [views, viewId])
+
+  return view as IView<T>
+}
+
+export const useFileFields = () => {
+  const { tableName } = useContext(TableContext)
+  const { fields } = useTableFields(tableName)
+  return useMemo(() => {
+    return fields.filter((field) => field.type === FieldType.File)
+  }, [fields])
 }

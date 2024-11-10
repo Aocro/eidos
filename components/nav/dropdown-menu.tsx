@@ -1,26 +1,28 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
-  BookOpenIcon,
   CogIcon,
   CommandIcon,
+  Download,
   Github,
   HomeIcon,
   Keyboard,
   MailIcon,
   MoreHorizontal,
   PackageIcon,
-  QrCodeIcon,
+  RefreshCw,
   ScanTextIcon,
   Trash2Icon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router-dom"
 
 import { BGEM3 } from "@/lib/ai/llm_vendors/bge"
 import { DOMAINS } from "@/lib/const"
-import { EIDOS_VERSION } from "@/lib/log"
+import { EIDOS_VERSION, isDesktopMode } from "@/lib/env"
 import { useAppRuntimeStore } from "@/lib/store/runtime-store"
 import { useCurrentNode } from "@/hooks/use-current-node"
 import { useCurrentPathInfo } from "@/hooks/use-current-pathinfo"
+import { useEmbedding } from "@/hooks/use-embedding"
 import { useHnsw } from "@/hooks/use-hnsw"
 import { useSqlite } from "@/hooks/use-sqlite"
 import { useVCardEmail } from "@/hooks/use-vcard-email"
@@ -47,8 +49,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DiscordIcon } from "@/components/icons/discord"
-import { NodeUpdateTime } from "@/app/[database]/[node]/node-update-time"
-import { useExperimentConfigStore } from "@/app/settings/experiment/store"
+import { NodeUpdateTime } from "@/components/nav/node-update-time"
+import { useExperimentConfigStore } from "@/apps/web-app/settings/experiment/store"
 
 import { CopyShowHide } from "../copy-show-hide"
 import { NodeMoveInto } from "../node-menu/move-into"
@@ -56,10 +58,13 @@ import { NodeExport } from "../node-menu/node-export"
 import { Switch } from "../ui/switch"
 import { useToast } from "../ui/use-toast"
 import { VCardQrCode } from "../vcard-qr-code"
+import { UpdateStatusComponent } from "./update-status"
 
 export function NavDropdownMenu() {
+  const { t } = useTranslation()
   const router = useNavigate()
   const [open, setOpen] = useState(false)
+  const { hasEmbeddingModel, embeddingTexts } = useEmbedding()
 
   const { deleteNode, toggleNodeFullWidth, toggleNodeLock } = useSqlite()
   const { isKeyboardShortcutsOpen, setKeyboardShortcutsOpen } =
@@ -95,16 +100,16 @@ export function NavDropdownMenu() {
   const handleCreateDocEmbedding = async () => {
     if (node) {
       toast({
-        title: `Creating Embedding for ${node.name}`,
+        title: t("nav.dropdown.menu.creatingEmbedding", { name: node.name }),
       })
       await createEmbedding({
         id: node.id,
         type: "doc",
         model: "bge-m3",
-        provider: new BGEM3(),
+        provider: new BGEM3(embeddingTexts),
       })
       toast({
-        title: "Embedding Created",
+        title: t("nav.dropdown.menu.embeddingCreated"),
       })
     }
   }
@@ -114,12 +119,12 @@ export function NavDropdownMenu() {
       <Dialog>
         <DialogContent className="">
           <DialogHeader>
-            <DialogTitle>Send mail to Eidos</DialogTitle>
+            <DialogTitle>{t("nav.dropdown.menu.sendMailToEidos")}</DialogTitle>
             {node && (
               <div className="!mt-5 flex w-full flex-col gap-4">
                 <div className="flex w-full justify-center">
                   <VCardQrCode
-                    firstName={node.name || "Untitled"}
+                    firstName={node.name || t("common.untitled")}
                     lastName={space}
                     email={getEmail(node.id, space)}
                   />
@@ -128,10 +133,7 @@ export function NavDropdownMenu() {
                   {node && <CopyShowHide text={getEmail(node.id, space)} />}
                 </DialogDescription>
                 <p className="p-2">
-                  1. Scan the QR code to add the address to your contacts
-                  <br />
-                  2. Send an email to this address to save data into this table
-                  <br />
+                  {t("nav.dropdown.menu.emailInstructions")}
                 </p>
               </div>
             )}
@@ -145,21 +147,19 @@ export function NavDropdownMenu() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
-            <DropdownMenuLabel>All data hosted on Local 🖥</DropdownMenuLabel>
-            <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onSelect={toggleCMDK}>
                 <CommandIcon className="mr-2 h-4 w-4" />
-                <span>Command Palette</span>
+                <span>{t("nav.dropdown.menu.commandPalette")}</span>
                 <DropdownMenuShortcut>⌘K</DropdownMenuShortcut>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={toggleKeyboardShortcuts}>
                 <Keyboard className="mr-2 h-4 w-4" />
-                <span>Keyboard Shortcuts</span>
+                <span>{t("nav.dropdown.menu.keyboardShortcuts")}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={goSettings}>
                 <CogIcon className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <span>{t("common.settings")}</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -175,17 +175,10 @@ export function NavDropdownMenu() {
                 <span>Discord</span>
               </DropdownMenuItem>
             </Link>
-            {/* <Link to="https://wiki.eidos.space" target="_blank">
-              <DropdownMenuItem>
-                <BookOpenIcon className="mr-2 h-4 w-4" />
-                <span>Wiki</span>
-              </DropdownMenuItem>
-            </Link> */}
-
             <Link to="/?home=1">
               <DropdownMenuItem>
                 <HomeIcon className="mr-2 h-4 w-4" />
-                <span>Website</span>
+                <span>{t("nav.dropdown.menu.website")}</span>
               </DropdownMenuItem>
             </Link>
 
@@ -201,7 +194,7 @@ export function NavDropdownMenu() {
                         toggleNodeFullWidth(node)
                       }}
                     >
-                      Full Width
+                      {t("nav.dropdown.menu.fullWidth")}
                       <Switch checked={node.is_full_width} />
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -211,7 +204,7 @@ export function NavDropdownMenu() {
                         toggleNodeLock(node)
                       }}
                     >
-                      Lock
+                      {t("nav.dropdown.menu.lock")}
                       <Switch checked={node.is_locked} />
                     </DropdownMenuItem>
                   </>
@@ -222,20 +215,19 @@ export function NavDropdownMenu() {
                     <DialogTrigger className="w-full">
                       <DropdownMenuItem>
                         <MailIcon className="pr-2" />
-                        Mail
+                        {t("nav.dropdown.menu.mail")}
                       </DropdownMenuItem>
                     </DialogTrigger>
                   </>
                 )}
                 <DropdownMenuSeparator />
-                {/* node related operate */}
                 <NodeExport node={node} />
                 {node.type === "doc" && (
                   <>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <PackageIcon className="pr-2" />
-                        Move Into
+                        {t("node.menu.moveInto")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-48">
                         <NodeMoveInto node={node} />
@@ -243,12 +235,12 @@ export function NavDropdownMenu() {
                       {experiment.enableRAG && (
                         <DropdownMenuItem
                           onClick={handleCreateDocEmbedding}
-                          disabled={!isEmbeddingModeLoaded}
+                          disabled={!hasEmbeddingModel}
                         >
                           <div className="flex w-full items-center justify-between pr-1">
                             <div className="flex items-center">
                               <ScanTextIcon className="mr-2 h-4 w-4"></ScanTextIcon>
-                              Embedding(Beta)
+                              {t("nav.dropdown.menu.embedding")}
                             </div>
                           </div>
                         </DropdownMenuItem>
@@ -258,14 +250,26 @@ export function NavDropdownMenu() {
                 )}
                 <DropdownMenuItem onClick={deleteCurrentNode}>
                   <Trash2Icon className="mr-2 h-4 w-4"></Trash2Icon>
-                  <span>Delete</span>
+                  <span>{t("common.delete")}</span>
                 </DropdownMenuItem>
                 <NodeUpdateTime />
               </>
             )}
             <DropdownMenuSeparator />
+            <Link to="/download">
+              <DropdownMenuItem>
+                <Download className="mr-2 h-4 w-4" />
+                <span>{t("common.download")}</span>
+              </DropdownMenuItem>
+            </Link>
+            <UpdateStatusComponent />
             <span className="p-2 text-sm text-gray-500">
-              Version: {EIDOS_VERSION}
+              {t("nav.dropdown.menu.version", {
+                version: EIDOS_VERSION,
+                mode: isDesktopMode
+                  ? t("nav.dropdown.menu.desktop")
+                  : t("nav.dropdown.menu.web"),
+              })}
             </span>
           </DropdownMenuContent>
         </DropdownMenu>

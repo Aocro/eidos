@@ -4,23 +4,28 @@ import DataEditor, {
   HeaderClickedEventArgs,
 } from "@glideapps/glide-data-grid"
 
-import { useSpaceAppStore } from "@/app/[database]/store"
+import { useSpaceAppStore } from "@/apps/web-app/[database]/store"
 
 import "@glideapps/glide-data-grid/dist/index.css"
-import React, { useCallback, useEffect, useMemo, useRef } from "react"
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react"
 import { useKeyPress, useSize } from "ahooks"
 import { Plus } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { IGridViewProperties, IView } from "@/lib/store/IView"
-import { cn } from "@/lib/utils"
+import { cn, getRawTableNameById } from "@/lib/utils"
 import { useSqlite } from "@/hooks/use-sqlite"
 import { useTableOperation } from "@/hooks/use-table"
-import { useTransformSqlQuery } from "@/hooks/use-transform-sql-query"
 import { useUiColumns } from "@/hooks/use-ui-columns"
 
 import { Button } from "../../../ui/button"
-import { useCurrentView } from "../../hooks"
+import { TableContext, useCurrentView } from "../../hooks"
 import { useViewCount } from "../../hooks/use-view-count"
 import { AITools } from "./ai-tools"
 import { customCells } from "./cells"
@@ -33,6 +38,9 @@ import { useDrop } from "./hooks/use-drop"
 import { useHover } from "./hooks/use-hover"
 import { useTableAppStore } from "./store"
 import "./styles.css"
+import { MsgType } from "@/lib/const"
+import { getWorker } from "@/lib/sqlite/worker"
+
 import { TwinkleSparkle } from "../../../loading"
 import { getScrollbarWidth } from "./helper"
 import { darkTheme, lightTheme } from "./theme"
@@ -83,6 +91,10 @@ export default function GridView(props: IGridProps) {
     DataEditorProps["highlightRegions"]
   >([])
 
+  const [customHighlightRegions, setCustomHighlightRegions] = React.useState<
+    DataEditorProps["highlightRegions"]
+  >([])
+
   const r = containerRef.current?.querySelector(".dvn-scroll-inner")
   const hasScroll = r && r?.scrollWidth > r?.clientWidth
 
@@ -109,6 +121,7 @@ export default function GridView(props: IGridProps) {
     },
     [showColumns]
   )
+  const { isReadOnly } = useContext(TableContext)
 
   const {
     getCellContent,
@@ -119,6 +132,7 @@ export default function GridView(props: IGridProps) {
     handleAddRow,
     handleDelRows,
     getRowByIndex,
+    getIndexByRowId,
   } = useAsyncData<any>({
     tableName,
     pageSize: 100,
@@ -135,15 +149,42 @@ export default function GridView(props: IGridProps) {
     useTableAppStore()
   const [isAItoolsOpen, setIsAItoolsOpen] = React.useState(false)
 
-  // handle undo redo
-  useKeyPress(["ctrl.z", "meta.z"], (e) => {
-    e.preventDefault()
-    if (e.shiftKey) {
-      redo()
-    } else {
-      undo()
+  useEffect(() => {
+    const worker = getWorker()
+    function subscribeHighlightRow(e: MessageEvent<any>) {
+      const { type, payload } = e.data
+      if (type === MsgType.HighlightRow) {
+        const { tableId, rowId, fieldName } = payload
+        if (tableName !== getRawTableNameById(tableId)) return
+        const index = getIndexByRowId(rowId)
+        // highlight row
+        if (fieldName) {
+          const colIndex = showColumns.findIndex((c) => c.name === fieldName)
+          if (colIndex > -1) {
+            setCustomHighlightRegions([
+              {
+                color: "rgba(0, 0, 255, 0.1)",
+                range: { x: colIndex, y: index, width: 1, height: 1 },
+              },
+            ])
+          }
+        } else {
+          setCustomHighlightRegions([
+            {
+              color: "rgba(0, 0, 255, 0.1)",
+              range: { x: 0, y: index, width: showColumns.length, height: 1 },
+            },
+          ])
+        }
+      }
     }
-  })
+    worker.addEventListener("message", subscribeHighlightRow)
+    window.addEventListener("message", subscribeHighlightRow)
+    return () => {
+      worker.removeEventListener("message", subscribeHighlightRow)
+      window.removeEventListener("message", subscribeHighlightRow)
+    }
+  }, [getIndexByRowId, showColumns, tableName])
 
   useEffect(() => {
     if (!selection.current) {
@@ -185,11 +226,6 @@ export default function GridView(props: IGridProps) {
     tableSchema && setCurrentTableSchema(tableSchema)
   }, [setCurrentTableSchema, tableSchema])
 
-  useKeyPress(["ctrl.f", "meta.f"], (e) => {
-    e.preventDefault()
-    setShowSearch(!showSearch)
-  })
-
   useEffect(() => {
     clearSelection()
   }, [tableName, databaseName, clearSelection])
@@ -220,8 +256,12 @@ export default function GridView(props: IGridProps) {
     glideDataGridRef.current?.focus()
   }
   const highlightRegions = useMemo(() => {
-    return [...(highlights ?? []), ...(aiHighlightRegions ?? [])]
-  }, [highlights, aiHighlightRegions])
+    return [
+      ...(highlights ?? []),
+      ...(aiHighlightRegions ?? []),
+      ...(customHighlightRegions ?? []),
+    ]
+  }, [highlights, aiHighlightRegions, customHighlightRegions])
 
   const { showAILoading, positionStyle } = useMemo(() => {
     if (aiHighlightRegions?.length) {
@@ -245,25 +285,35 @@ export default function GridView(props: IGridProps) {
     }
   }, [aiHighlightRegions])
 
+  useKeyPress(["ctrl.f", "meta.f"], (e) => {
+    e.preventDefault()
+    setShowSearch(!showSearch)
+  })
+
+  useKeyPress("alt.i", (e) => {
+    if (e.metaKey) return
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAItoolsOpen((prev) => !prev)
+  })
+
+  // handle undo redo
+  useKeyPress(["ctrl.z", "meta.z"], (e) => {
+    e.preventDefault()
+    if (e.shiftKey) {
+      redo()
+    } else {
+      undo()
+    }
+  })
+
   return (
     <div
       className={cn("h-full w-full p-2 pt-0", props.className)}
       ref={containerRef}
-      onKeyDownCapture={(e) => {
-        if (e.altKey && e.key === "i") {
-          e.preventDefault()
-          e.stopPropagation()
-          setIsAItoolsOpen(!isAItoolsOpen)
-        }
-      }}
     >
       <div
-        className={cn(
-          "flex h-full w-full overflow-hidden rounded-md border-t",
-          {
-            "pb-8": !props.isEmbed,
-          }
-        )}
+        className={cn("flex h-full w-full overflow-hidden rounded-md border-t")}
       >
         <GridContextMenu
           handleDelRows={handleDelRows}
@@ -283,7 +333,7 @@ export default function GridView(props: IGridProps) {
               onDrop={onDrop}
               onDragOverCell={onDragOverCell}
               highlightRegions={highlightRegions}
-              showSearch={showSearch}
+              // showSearch={showSearch}
               gridSelection={selection}
               onItemHovered={onItemHovered}
               // getRowThemeOverride={getRowThemeOverride}
@@ -299,16 +349,18 @@ export default function GridView(props: IGridProps) {
               columns={columns ?? []}
               rows={viewCount}
               rightElement={
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="flex w-full justify-start rounded-none"
-                  onClick={() => {
-                    setIsAddFieldEditorOpen(true)
-                  }}
-                >
-                  <Plus size={16} />
-                </Button>
+                !isReadOnly && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex w-full justify-start rounded-none"
+                    onClick={() => {
+                      setIsAddFieldEditorOpen(true)
+                    }}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                )
               }
               rightElementProps={{
                 // sticky: true,
@@ -316,7 +368,7 @@ export default function GridView(props: IGridProps) {
               }}
               onCellEdited={onCellEdited}
               onCellsEdited={onCellsEdited}
-              onRowAppended={handleAddRow}
+              onRowAppended={isReadOnly ? undefined : handleAddRow}
             />
           )}
         </GridContextMenu>

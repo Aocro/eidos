@@ -8,6 +8,7 @@ import {
   ORDERED_LIST,
   QUOTE,
   TRANSFORMERS,
+  Transformer,
 } from "@lexical/markdown"
 
 import { IMAGE } from "@/components/doc/nodes/ImageNode/ImageNode"
@@ -15,6 +16,7 @@ import { SQL_NODE_TRANSFORMER } from "@/components/doc/nodes/SQLNode"
 
 import { BOOKMARK, BookmarkPayload } from "../nodes/BookmarkNode"
 import { HR } from "./MarkdownTransformers"
+import { BuiltInBlocks } from "../blocks"
 
 export const allTransformers = [
   CHECK_LIST,
@@ -31,7 +33,8 @@ export const allTransformers = [
   HR,
   SQL_NODE_TRANSFORMER,
   ...TRANSFORMERS,
-]
+  ...BuiltInBlocks.map((block) => block.transform).filter(Boolean),
+] as Transformer[]
 
 export const fgColors = [
   { name: "default", value: "inherit" },

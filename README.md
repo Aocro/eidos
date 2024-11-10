@@ -2,7 +2,8 @@
 
 <div align="center">
     <a href="https://eidos.space?home=1">Home Page</a> |
-    <a href="https://discord.gg/bsGMPDR23b">Discord</a>
+    <a href="https://discord.gg/bsGMPDR23b">Discord</a> |
+    <a href="https://eidos.space/download">Download</a>
     <p>
     Eidos is an extensible framework for managing your personal data throughout your lifetime in one place.
     </p>
@@ -13,7 +14,7 @@
 
 ## Features
 
-- Everything runs inside your browser. It's a pure PWA with no web server.
+- Everything runs inside your local machine.
 - Offline Support: Access your data without an internet connection. Data is stored locally for blazing-fast performance.
 - AI Features: Deeply integrated with LLM for AI-powered capabilities. Translate, summarize, and interact with your data within Eidos. AI works even offline.
 - Extensible: Customize Eidos to suit your needs.
@@ -21,77 +22,53 @@
   - Prompt: Speed up your workflow with the Prompt extension. No coding required.
   - UDF: Use JavaScript to customize Formula functions.
   - Script: Create powerful data processing logic with TypeScript/JavaScript.
-  - App: Build your own app using any preferred framework.
-  - Block: Extend documents with custom blocks.
-  - Field: Extend tables with custom fields.
+  - App: Build your own app using any preferred framework. (POC)
+  - Block: Extend documents with custom blocks.(POC)
+  - Field: Extend tables with custom fields.(Soon)
 
 - Developer Friendly:
 
   - API & SDK
   - Sqlite Standardization: Every table in Eidos is a SQLite table.
 
-## Requirements
+## How to use
 
-Currently, Eidos only supports the latest version of chromium-based browsers, such as Chrome, Edge, Arc, and Brave. It recommends a version greater than 122.
+There are two versions of Eidos:
 
-Safari, Firefox, and other browsers are not tested yet.
+- Web app[tech preview]: Accessible via browser, it's a pure PWA with no web server. But it has some limitations, see [web-vs-desktop](./docs/web-vs-desktop.md)
+- Desktop app[recommended]: Offline support, full features.
 
-### Why?
-
-Eidos is built on sqlite-wasm and requires browser support for OPFS[1] to work.
-
-Storing data in a local folder is a good practice to ensure better data security. With Chrome 122 and its later versions, we can get persistent permissions[2] for local folders, so we do not have to select a folder every time we open the web app.
-
-1. https://sqlite.org/wasm/doc/trunk/persistence.md#opfs
-2. https://developer.chrome.com/blog/persistent-permissions-for-the-file-system-access-api
+Get the app from: https://eidos.space/download
 
 ## How to develop
 
+### web app
+
 1. Clone the repository `git clone git@github.com:mayneyao/eidos.git`
 2. Run `pnpm install` to install dependencies
-3. Run `pnpm build` (only needed once)
-4. Run `pnpm dev`
-5. You can now access the app in your browser at http://localhost:5173
+3. Run `pnpm dev`
+4. You can now access the app in your browser at http://localhost:5173
 
-### Generate sdk types
+### desktop app
 
-```shell
-pnpm gen-types
-```
+Download [libsimple](https://github.com/wangfenjin/simple) first, see more details at [workflows](./.github/workflows/build-and-release-desktop-app.yml)
+
+1. Clone the repository `git clone git@github.com:mayneyao/eidos.git`
+2. Run `pnpm install` to install dependencies
+3. Run `pnpm dev:desktop`
 
 ## How to deploy your own
 
-### Static Hosting
+For most users, you don't need to deploy your own. You can use the desktop app version of Eidos with full offline support and features.
 
-Download the release(looks like `build-v0.x.x.zip`) from the [release page](https://github.com/mayneyao/eidos/releases) and host it on your own server.
-
-Due to security limitations, browsers may refuse to load WASM from pages served via file:// URLs. You may need to serve the files via a web server and need to modify the HTTP response header to ensure it works normally. This depends on the web server you are using; there are some configurations that can be referenced here:
-
-- Nginx config in [Dockerfile](./Dockerfile)
-- [vercel.json](./vercel.json)
-- [public/\_headers](./public/_headers) for cloudflare pages
-
-### Serverless
-
-Fork this repository and deploy it to your favorite serverless provider. Cloudflare Pages, Vercel, and Netlify are all good choices.
-
-Use `build:self-host` to build the app; this will skip the activation.
-
-### Docker
-
-1. Run `docker build -t eidos .` to build the docker image
-2. Run `docker run -p 8080:80 eidos` to start the container, change the port if needed
-
-or use the pre-built image:
-
-```shell
-docker run -d  -p 8080:80 ghcr.io/mayneyao/eidos
-```
+If you want to deploy your own, see more details at [self-hosting](./docs/self-hosting.md)
 
 ## Roadmap
 
 https://github.com/users/mayneyao/projects/5
 
+- [x] Desktop App
+- [x] I18n
 - [ ] Publish Service: Publish your data to the web.
 - [ ] P2p sync based on CRDT: local-first, not local-only. Sync your data across devices.
 
@@ -99,12 +76,19 @@ https://github.com/users/mayneyao/projects/5
 
 Eidos based on the following open-source projects:
 
+### web app
+
 - [sqlite-wasm](https://github.com/sqlite/sqlite-wasm) - Run SQLite in the browser
 - [shadcn-ui](https://github.com/shadcn-ui/ui) - UI components
 - [glide-data-grid](https://github.com/glideapps/glide-data-grid) - High performance table
 - [lexical](https://github.com/facebook/lexical) - Document editor
 - [web-llm](https://github.com/mlc-ai/web-llm) - Run LLM in the browser
 - [teable](https://github.com/teableio/teable) & [apitable](https://github.com/apitable/apitable) - Teach me how to build an Airtable-like table.
+
+### desktop app
+
+- [electron](https://github.com/electron/electron) - Build cross-platform desktop apps
+- [libsimple](https://github.com/wangfenjin/libsimple) - a sqlite extension for full-text search for CJK languages
 
 ## License
 

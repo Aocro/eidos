@@ -20,6 +20,9 @@ export enum MsgType {
   ConvertEmail2State = "ConvertEmail2State",
 
   GetDocMarkdown = "GetDocMarkdown",
+
+  // table related msg
+  HighlightRow = "HighlightRow",
 }
 
 export enum MainServiceWorkerMsgType {
@@ -57,6 +60,7 @@ export enum DataUpdateSignalType {
 
 export const EidosDataEventChannelName = "eidos-data-event"
 export const EidosSharedEnvChannelName = "eidos-shared-env"
+export const EidosMessageChannelName = "eidos-message"
 
 // TODO: replace hard-coded link
 export const DOMAINS = {

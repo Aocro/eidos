@@ -3,6 +3,7 @@ import type { Identifier, XYCoord } from "dnd-core"
 import { useDrag, useDrop } from "react-dnd"
 import { Link, useSearchParams } from "react-router-dom"
 
+import { isInkServiceMode } from "@/lib/env"
 import { ITreeNode } from "@/lib/store/ITreeNode"
 import { useAppRuntimeStore } from "@/lib/store/runtime-store"
 import { cn } from "@/lib/utils"
@@ -10,7 +11,7 @@ import { useCurrentNode } from "@/hooks/use-current-node"
 import { useCurrentPathInfo } from "@/hooks/use-current-pathinfo"
 import { useAllNodes } from "@/hooks/use-nodes"
 import { Button } from "@/components/ui/button"
-import { NodeIconEditor } from "@/app/[database]/[node]/node-icon"
+import { NodeIconEditor } from "@/apps/web-app/[database]/[node]/node-icon"
 
 import { ItemIcon } from "../item-tree"
 import { NodeItem } from "./node-menu"
@@ -184,6 +185,7 @@ export const Card: FC<CardProps> = ({
         onDrop(item)
       }
     },
+    canDrag: !isInkServiceMode,
   })
 
   // const opacity = isDragging ? 0 : 1
